@@ -139,8 +139,13 @@ Reverse everything the kit added to a project:
 ```
 It restores any `*.adk-bak` (your originals), removes only files in the manifest,
 strips the kit's `.gitignore` block (leaving your lines), and removes the kit's
-global Codex prompts. Without a manifest it does a best-effort cleanup and never
-deletes a pre-existing `AGENTS.md`.
+global Codex prompts (only those it created). It also **strips the kit's MCP server
+entries** from `.mcp.json` / `.codex/config.toml` / `.vscode/mcp.json` (deleting those
+files only if nothing else remains — your own servers are kept), removes the
+guardrail-hook entries from `.claude/settings.json`, and **deletes `graphify-out/`**.
+Without a manifest it does a best-effort, ownership-safe cleanup that never blind-deletes
+a file it can't prove it created. `--with-superpowers` / `--with-graphify` additionally
+remove those global tools.
 
 ## Safe to re-run
 Installs are gated on `command -v`; generated content lives in marker blocks that

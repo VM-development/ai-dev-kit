@@ -1,27 +1,36 @@
 #!/usr/bin/env python3
 """ai-dev-kit PreToolUse guard for Read/Edit/Write. Blocks likely secret files.
 
-Exit 2 blocks the tool call and shows the message to the model. `.env.example`
-and similar templates are explicitly allowed. Edit the lists below to tune.
+Exit 2 blocks the tool call and shows the message to the model. Only true
+template files (`.env.example` etc.) are allowed; everything matching DENY is
+blocked (ALLOW is checked first and is anchored so it can't be used as a bypass).
+Edit the lists below to tune.
 """
 import json
 import re
 import sys
 
+# Anchored: only the legitimate template/sample files (NOT a substring bypass).
 ALLOW = [
     r"\.env\.(example|sample|template|dist)$",
-    r"\.env\.example",
 ]
 DENY = [
-    r"(^|/)\.env($|\.[^/]*$)",
+    r"(^|/)\.env($|\.[^/]*$)",          # .env, .env.local, .env.production
+    r"(^|/)[^/]*\.env$",                # deploy.env, prod.env, secrets.env
     r"\.pem$",
     r"\.p12$",
     r"\.pfx$",
+    r"\.key$",                          # private keys (server.key, *.key)
     r"(^|/)id_(rsa|dsa|ecdsa|ed25519)(\.pub)?$",
     r"(^|/)\.ssh/",
     r"(^|/)\.aws/credentials",
     r"(^|/)\.npmrc$",
     r"(^|/)\.netrc$",
+    r"(^|/)\.git-credentials$",
+    r"(^|/)\.kube/config$",
+    r"(^|/)service-account[^/]*\.json$",
+    r"(^|/)gcp[-_]?key[^/]*\.json$",
+    r"\.tfstate(\.backup)?$",
     r"(^|/)secrets?\.(ya?ml|json|toml|env)$",
     r"(^|/)credentials?\.(ya?ml|json|toml)$",
 ]

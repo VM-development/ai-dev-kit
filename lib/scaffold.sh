@@ -12,11 +12,14 @@ _ADK_SCAFFOLD_SOURCED=1
 # ---- manifest + conflict handling ----------------------------------------
 # The manifest (.ai-dev-kit-manifest) lists the project-relative paths the kit
 # actually wrote, so .gitignore + uninstall.sh act only on real kit files.
-_manifest() { printf '%s' "$TARGET_DIR/.ai-dev-kit-manifest"; }
+# During scaffolding ADK_MANIFEST points at a temp file; it is moved into place only on
+# success (see scaffold_project), so a mid-run abort never leaves a partial manifest.
+_manifest() { printf '%s' "${ADK_MANIFEST:-$TARGET_DIR/.ai-dev-kit-manifest}"; }
 
 _PRIOR_MANIFEST=""
 _load_prior_manifest() {
-  if [ -f "$(_manifest)" ]; then _PRIOR_MANIFEST="$(cat "$(_manifest)")"; else _PRIOR_MANIFEST=""; fi
+  local m="$TARGET_DIR/.ai-dev-kit-manifest"
+  if [ -f "$m" ]; then _PRIOR_MANIFEST="$(cat "$m")"; else _PRIOR_MANIFEST=""; fi
 }
 
 # _kit_owns <project-relative-path> : true if a PRIOR run created this file.
@@ -102,7 +105,10 @@ _write_command_codex() {
     printf 'argument-hint: "%s"\n' "$(_cmd_hint "$name")"
     printf -- '---\n\n'
     sed 's/__ARG__/$ARGUMENTS/g' "$body"
+    printf '\n<!-- ai-dev-kit:command -->\n'   # ownership marker (global dir, not in manifest)
   } > "$tmp"
+  # Back up a genuine pre-existing USER prompt (one we didn't write) so it's recoverable.
+  if [ -f "$dest" ] && ! grep -q 'ai-dev-kit:command' "$dest" 2>/dev/null; then backup_once "$dest"; fi
   mv "$tmp" "$dest"
 }
 
@@ -230,7 +236,9 @@ scaffold_project() {
   export PROJECT_NAME ADK_DATE ON_CONFLICT
 
   _load_prior_manifest
-  : > "$(_manifest)"          # fresh manifest; we append each path we actually write
+  # Build the manifest in a temp file; it's moved into place only after a clean run
+  # (step 7), so a mid-run abort leaves no partial manifest for uninstall to trust.
+  ADK_MANIFEST="$(mktemp)"; export ADK_MANIFEST
   rm -f "$TARGET_DIR/.ai-dev-kit-mcp"   # fresh MCP ledger; recreated on demand
 
   # 1. AGENTS.md - single source of truth (incl. Standards). Never clobber an existing one.
@@ -283,5 +291,7 @@ scaffold_project() {
 
   # 7. .gitignore (managed block; honors --gitignore local mode)
   gitignore_step
+  # Atomically publish the manifest now that scaffolding fully succeeded.
+  mv -f "$ADK_MANIFEST" "$TARGET_DIR/.ai-dev-kit-manifest"; ADK_MANIFEST=""
   return 0
 }

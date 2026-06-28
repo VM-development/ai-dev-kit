@@ -10,6 +10,7 @@ Usage:
 """
 import json
 import os
+import shutil
 import sys
 
 
@@ -18,9 +19,21 @@ def load(path):
         try:
             with open(path, encoding="utf-8") as f:
                 d = json.load(f)
-            return d if isinstance(d, dict) else {}
+            if isinstance(d, dict):
+                return d
         except (ValueError, OSError):
-            return {}
+            pass
+        # Malformed or non-object: preserve the original before we overwrite it,
+        # so the user (or a backup restore) can recover it.
+        bak = path + ".adk-bak"
+        if not os.path.exists(bak):
+            try:
+                shutil.copyfile(path, bak)
+            except OSError:
+                pass
+        sys.stderr.write(
+            "mcp_upsert: %s was not valid JSON object; backed up to %s\n" % (path, bak)
+        )
     return {}
 
 

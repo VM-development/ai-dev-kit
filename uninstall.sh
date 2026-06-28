@@ -2,10 +2,11 @@
 #
 # ai-dev-kit uninstaller — reverse what setup.sh added to a project.
 #
-#   - Restores any file the kit had backed up to *.adk-bak (returns your original).
+#   - Restores any file the kit backed up to *.adk-bak (returns your original).
 #   - Removes files the kit created (precisely, from .ai-dev-kit-manifest).
+#   - Strips the kit's MCP entries (keeping your own) and guardrail-hook entries.
 #   - Removes the kit's managed .gitignore block (leaves your other entries).
-#   - Removes the user-global Codex command prompts (the kit's 4 only).
+#   - Removes only the kit-created global Codex prompts (marker-checked); deletes graphify-out/.
 #   - Optionally uninstalls Superpowers and graphify (global tools; off by default).
 #
 # Usage: ./uninstall.sh [TARGET_DIR] [options]
@@ -19,6 +20,7 @@ TARGET_DIR="$(pwd)"
 ASSUME_YES=""; QUIET=""; DRY_RUN=""
 WITH_SUPERPOWERS=""; WITH_GRAPHIFY=""
 SUPERPOWERS_MARKETPLACE="obra/superpowers-marketplace"
+SUPERPOWERS_PLUGIN="superpowers@superpowers-marketplace"   # installed-plugin id (matches setup)
 
 usage() {
   cat <<'EOF'
@@ -65,6 +67,7 @@ export ASSUME_YES QUIET DRY_RUN
 remove_managed() {
   local rel="$1" abs bak
   case "$rel" in ""|/*|*..*) log_warn "skipping unsafe manifest path: '$rel'"; return 0 ;; esac
+  if [ "$rel" = "CLAUDE.md" ]; then remove_claude_md; return 0; fi
   abs="$TARGET_DIR/$rel"; bak="$TARGET_DIR/$rel.adk-bak"
   if [ -e "$bak" ]; then
     if is_dry; then log_info "[dry] restore $rel (from .adk-bak)"; return 0; fi
@@ -86,6 +89,27 @@ _restore_only() {
   fi
 }
 
+# CLAUDE.md is a merge target (we prepend @AGENTS.md + a managed notes block). Reverse it
+# surgically — strip our block + the prepended import — so post-install user edits survive,
+# instead of mv-restoring a stale backup snapshotted at first install.
+remove_claude_md() {
+  local f="$TARGET_DIR/CLAUDE.md" tmp
+  local bak="$f.adk-bak"
+  [ -f "$f" ] || { rm -f "$bak" 2>/dev/null || true; return 0; }
+  if is_dry; then log_info "[dry] strip ai-dev-kit from CLAUDE.md (preserve your edits)"; return 0; fi
+  remove_block "$f" "claude-notes" "<!--" "-->"
+  if head -n1 "$f" | grep -qxF '@AGENTS.md'; then
+    tmp="$(mktemp)"
+    awk 'NR==1 && $0=="@AGENTS.md"{drop=1; next} drop==1 && $0==""{drop=0; next} {drop=0; print}' "$f" > "$tmp" && mv "$tmp" "$f"
+  fi
+  if grep -q '[^[:space:]]' "$f" 2>/dev/null; then
+    log_success "stripped ai-dev-kit from CLAUDE.md (your content kept)"
+  else
+    rm -f "$f"; log_success "removed CLAUDE.md"
+  fi
+  rm -f "$bak" 2>/dev/null || true
+}
+
 remove_project_files() {
   local manifest="$TARGET_DIR/.ai-dev-kit-manifest" rel c
   if [ -f "$manifest" ]; then
@@ -97,13 +121,15 @@ remove_project_files() {
   else
     log_warn "No .ai-dev-kit-manifest — conservative cleanup."
     log_dim "Removing only kit-named command/prompt files; other files restored only if backed up."
-    # Unambiguous kit files (named by the kit): safe to remove.
+    # No manifest = can't prove ownership. Only restore from backups; never blind-delete
+    # a file the user may have authored (even kit-named command files can collide).
+    local c
     for c in $ADK_COMMANDS; do
-      remove_managed ".claude/commands/$c.md"
-      remove_managed ".github/prompts/$c.prompt.md"
+      _restore_only ".claude/commands/$c.md"
+      _restore_only ".github/prompts/$c.prompt.md"
     done
-    # Possibly user-authored: only restore from a backup, never delete blindly.
-    for rel in AGENTS.md CLAUDE.md .claude/settings.json .codex/config.toml \
+    remove_claude_md
+    for rel in AGENTS.md .claude/settings.json .codex/config.toml \
                .github/copilot-instructions.md .github/workflows/copilot-setup-steps.yml; do
       _restore_only "$rel"
     done
@@ -121,6 +147,9 @@ remove_graphify_out() {
   rm -rf "$d"; log_success "removed graphify-out/"
 }
 
+# Global ~/.codex/prompts/ is shared across projects, so be ownership-precise: restore a
+# backed-up user original, remove only files carrying our 'ai-dev-kit:command' marker, and
+# never touch a same-named prompt the user authored themselves. Gated on Codex-was-here.
 remove_codex_prompts() {
   local dir="${CODEX_HOME:-$HOME/.codex}/prompts" c abs bak
   [ -d "$dir" ] || return 0
@@ -129,34 +158,59 @@ remove_codex_prompts() {
     if [ -e "$bak" ]; then
       if is_dry; then log_info "[dry] restore codex prompt $c"; continue; fi
       mv -f "$bak" "$abs"; log_success "restored ~/.codex/prompts/$c.md"
-    elif [ -e "$abs" ]; then
+    elif [ -f "$abs" ] && grep -q 'ai-dev-kit:command' "$abs" 2>/dev/null; then
       if is_dry; then log_info "[dry] remove codex prompt $c"; continue; fi
       rm -f "$abs"; log_success "removed ~/.codex/prompts/$c.md"
+    elif [ -e "$abs" ]; then
+      log_dim "left ~/.codex/prompts/$c.md (not created by ai-dev-kit)"
     fi
   done
+}
+
+# Strip the kit's PreToolUse guard hooks from .claude/settings.json so uninstall never
+# leaves hooks pointing at deleted scripts (which would error on every tool call).
+remove_hooks() {
+  local s="$TARGET_DIR/.claude/settings.json"
+  [ -f "$s" ] || return 0
+  has_cmd python3 || return 0
+  if is_dry; then log_info "[dry] strip ai-dev-kit hooks from .claude/settings.json"; return 0; fi
+  python3 "$ADK_ROOT/lib/hooks_merge.py" --remove "$s" \
+    && log_success "stripped ai-dev-kit hooks from settings.json" || true
 }
 
 # Remove the MCP server entries the kit added, from .ai-dev-kit-mcp ledger:
 #   JSON files (.mcp.json / .vscode/mcp.json): remove just our server key (keep user's).
 #   Codex config.toml: remove our managed [mcp_servers.<name>] block.
 remove_mcp() {
-  local sc="$TARGET_DIR/.ai-dev-kit-mcp" file root name
+  local sc="$TARGET_DIR/.ai-dev-kit-mcp" file root name failed=""
   [ -f "$sc" ] || return 0
   while IFS='|' read -r file root name; do
     [ -n "$file" ] && [ -n "$name" ] || continue
-    case "$file" in /*|*..*) log_warn "skipping unsafe MCP path: '$file'"; continue ;; esac
+    case "$file" in /*|*..*) log_warn "skipping unsafe MCP path: '$file'"; failed=1; continue ;; esac
     if [ "$root" = toml ]; then
       if is_dry; then log_info "[dry] remove Codex MCP block 'mcp-$name'"
       else remove_block "$TARGET_DIR/$file" "mcp-$name"; log_success "removed Codex MCP '$name'"; fi
     else
-      if is_dry; then log_info "[dry] remove MCP '$name' from $file"
-      elif [ -f "$TARGET_DIR/$file" ] && has_cmd python3; then
-        python3 "$ADK_ROOT/lib/mcp_upsert.py" "$TARGET_DIR/$file" "$root" remove "$name" \
-          && log_success "removed MCP '$name' from $file" || log_warn "couldn't edit $file"
+      if is_dry; then log_info "[dry] remove MCP '$name' from $file"; continue; fi
+      [ -f "$TARGET_DIR/$file" ] || continue
+      if ! has_cmd python3; then log_warn "python3 missing — left MCP '$name' in $file"; failed=1; continue; fi
+      if python3 "$ADK_ROOT/lib/mcp_upsert.py" "$TARGET_DIR/$file" "$root" remove "$name"; then
+        log_success "removed MCP '$name' from $file"
+        # Delete the file only if it has NO servers and no other content left.
+        if python3 -c "import json,sys; d=json.load(open(sys.argv[1])); r=sys.argv[2]; sys.exit(0 if (not (d.get(r) or {}) and not {k:v for k,v in d.items() if k!=r and v}) else 1)" "$TARGET_DIR/$file" "$root" 2>/dev/null; then
+          rm -f "$TARGET_DIR/$file"; log_dim "  ($file had nothing left — removed)"
+        fi
+      else
+        log_warn "couldn't edit $file"; failed=1
       fi
     fi
   done < "$sc"
-  is_dry || rm -f "$sc"
+  if is_dry; then return 0; fi
+  if [ -n "$failed" ]; then
+    log_warn "Kept .ai-dev-kit-mcp (some MCP entries couldn't be removed) — re-run uninstall after fixing."
+  else
+    rm -f "$sc"
+  fi
 }
 
 clean_gitignore() {
@@ -171,7 +225,7 @@ clean_gitignore() {
 cleanup_empty_dirs() {
   is_dry && return 0
   local d
-  for d in .claude/commands .claude .codex .github/prompts .github/workflows .github; do
+  for d in .claude/commands .claude/hooks .claude .codex .github/prompts .github/workflows .github; do
     rmdir "$TARGET_DIR/$d" 2>/dev/null || true
   done
 }
@@ -179,14 +233,14 @@ cleanup_empty_dirs() {
 remove_superpowers() {
   log_step "Superpowers (global plugin)"
   if has_cmd claude; then
-    if is_dry; then log_info "[dry] claude plugin uninstall superpowers@$SUPERPOWERS_MARKETPLACE"
-    else claude plugin uninstall "superpowers@$SUPERPOWERS_MARKETPLACE" >/dev/null 2>&1 \
+    if is_dry; then log_info "[dry] claude plugin uninstall $SUPERPOWERS_PLUGIN"
+    else claude plugin uninstall "$SUPERPOWERS_PLUGIN" >/dev/null 2>&1 \
            && log_success "Claude: Superpowers uninstalled." \
            || log_warn "Claude: couldn't auto-uninstall Superpowers (try /plugin)."; fi
   fi
   if has_cmd copilot; then
-    if is_dry; then log_info "[dry] copilot plugin uninstall superpowers@$SUPERPOWERS_MARKETPLACE"
-    else copilot plugin uninstall "superpowers@$SUPERPOWERS_MARKETPLACE" >/dev/null 2>&1 \
+    if is_dry; then log_info "[dry] copilot plugin uninstall $SUPERPOWERS_PLUGIN"
+    else copilot plugin uninstall "$SUPERPOWERS_PLUGIN" >/dev/null 2>&1 \
            && log_success "Copilot CLI: Superpowers uninstalled." \
            || log_warn "Copilot CLI: couldn't auto-uninstall Superpowers."; fi
   fi
@@ -211,6 +265,7 @@ main() {
   [ -d "$TARGET_DIR" ] || die "Target directory not found: $TARGET_DIR"
   TARGET_DIR="$(cd "$TARGET_DIR" && pwd)"; export TARGET_DIR
   HAVE_MANIFEST=""; [ -f "$TARGET_DIR/.ai-dev-kit-manifest" ] && HAVE_MANIFEST=1
+  HAD_CODEX="";     [ -f "$TARGET_DIR/.codex/config.toml" ] && HAD_CODEX=1
 
   log_step "ai-dev-kit uninstall → $TARGET_DIR"
   is_dry && log_warn "DRY RUN — nothing will be changed."
@@ -222,9 +277,10 @@ main() {
     confirm "Remove ai-dev-kit's files from this project?" n || die "Aborted."
   fi
 
+  remove_hooks
   remove_mcp
   remove_project_files
-  remove_codex_prompts
+  [ -n "$HAD_CODEX" ] && remove_codex_prompts || true
   remove_graphify_out
   clean_gitignore
   cleanup_empty_dirs

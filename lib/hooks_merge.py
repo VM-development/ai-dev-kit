@@ -1,11 +1,12 @@
 #!/usr/bin/env python3
-"""Merge ai-dev-kit's guardrail hooks into an existing .claude/settings.json.
+"""Add or remove ai-dev-kit's guardrail hooks in a .claude/settings.json.
 
-Adds PreToolUse hooks pointing at the kit's guard scripts, without disturbing
-other settings. Idempotent: re-running replaces the kit's hook entries only
-(matched by the guard-script command path), leaving any user hooks intact.
+Idempotent and surgical: it only ever touches PreToolUse entries whose command
+points at the kit's guard scripts — user hooks and other settings are preserved.
 
-Usage: hooks_merge.py <path-to-.claude/settings.json>
+Usage:
+  hooks_merge.py <settings.json>            # add the kit's guard hooks
+  hooks_merge.py --remove <settings.json>   # strip the kit's guard hooks (uninstall)
 """
 import json
 import os
@@ -28,9 +29,17 @@ def is_kit_entry(entry):
 
 
 def main():
-    path = sys.argv[1]
-    data = {}
-    if os.path.exists(path) and os.path.getsize(path) > 0:
+    remove = "--remove" in sys.argv[1:]
+    positional = [a for a in sys.argv[1:] if a != "--remove"]
+    if not positional:
+        sys.exit("hooks_merge: missing settings.json path")
+    path = positional[0]
+
+    if not os.path.exists(path):
+        if remove:
+            sys.exit(0)            # nothing to strip
+        data = {}
+    else:
         try:
             with open(path, encoding="utf-8") as f:
                 data = json.load(f)
@@ -43,13 +52,18 @@ def main():
     if not isinstance(hooks, dict):
         hooks = {}
     pre = hooks.get("PreToolUse")
-    if not isinstance(pre, list):
-        pre = []
-    # drop any prior kit entries, then add ours back (idempotent)
-    pre = [e for e in pre if not is_kit_entry(e)]
-    pre.extend(ENTRIES)
-    hooks["PreToolUse"] = pre
-    data["hooks"] = hooks
+    pre = [e for e in pre if not is_kit_entry(e)] if isinstance(pre, list) else []
+    if not remove:
+        pre.extend(ENTRIES)
+
+    if pre:
+        hooks["PreToolUse"] = pre
+    else:
+        hooks.pop("PreToolUse", None)
+    if hooks:
+        data["hooks"] = hooks
+    else:
+        data.pop("hooks", None)
 
     os.makedirs(os.path.dirname(path) or ".", exist_ok=True)
     with open(path, "w", encoding="utf-8") as f:

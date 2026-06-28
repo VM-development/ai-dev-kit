@@ -10,16 +10,15 @@ _ADK_MCP_SOURCED=1
 _mcp_sidecar() { printf '%s' "$TARGET_DIR/.ai-dev-kit-mcp"; }
 
 # _mcp_json <file> <root_key> <name> <http|stdio> <target> [args...]
+# NOTE: the JSON file is deliberately NOT recorded in the manifest. uninstall removes
+# only our server key (via the .ai-dev-kit-mcp ledger) and deletes the file only if it
+# is then empty — so a user's own servers in the same file are never destroyed.
 _mcp_json() {
   local file="$1" root="$2" name="$3" transport="$4"; shift 4
-  local rel="${file#"$TARGET_DIR"/}" created=""
+  local rel="${file#"$TARGET_DIR"/}"
   has_cmd python3 || { log_warn "python3 not found — skipping MCP '$name' for ${rel}."; return 0; }
-  [ -f "$file" ] || created=1
   python3 "$ADK_ROOT/lib/mcp_upsert.py" "$file" "$root" add "$name" "$transport" "$@" \
     || { log_warn "Failed to write MCP '$name' into ${rel}."; return 0; }
-  # Record the file in the manifest only if WE created it (or already own it) — never
-  # mark a pre-existing user .mcp.json for deletion (uninstall removes just our keys).
-  if [ -n "$created" ] || _kit_owns "$rel"; then record_manifest "$rel"; fi
   printf '%s|%s|%s\n' "$rel" "$root" "$name" >> "$(_mcp_sidecar)"
 }
 

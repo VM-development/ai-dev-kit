@@ -77,7 +77,11 @@ Everything else below is reference/optional.
 ## Fabrications the scout caught (don't re-suggest)
 - **ChrisRoyse/CodeGraph** — not a dependency-free Rust binary; graphify's features were misattributed to it.
 - **`mem0ai/mem0-mcp`** — archived/read-only since 2026-03; use the hosted endpoint or OpenMemory instead.
-- "Anthropic's official marketplace ships Superpowers" — **false**; it's the separate `obra/superpowers`.
+- Superpowers IS available in **both** Anthropic's official marketplace
+  (`/plugin install superpowers@claude-plugins-official`, merged 2026-01-15) **and** the
+  community `obra/superpowers-marketplace`. The kit installs from the community marketplace;
+  the official path is a valid alternative. (An earlier note here that called the official
+  path fake was itself wrong — corrected.)
 - `pip install repomapper`, `brew install rulesync` — no such packages (use the installs above).
 
 ## Current wiring
