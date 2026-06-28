@@ -27,7 +27,14 @@ git clone https://github.com/VM-development/ai-dev-kit ~/.ai-dev-kit
 
 # Option B — one-liner (clones to ~/.ai-dev-kit, then configures the current dir)
 curl -fsSL https://raw.githubusercontent.com/VM-development/ai-dev-kit/main/bootstrap.sh | bash
+
+# Option B + all optional tools (ast-grep, Grep MCP, private-journal, Claude hooks)
+curl -fsSL https://raw.githubusercontent.com/VM-development/ai-dev-kit/main/bootstrap.sh | bash -s -- --with-all-extras
 ```
+
+> Passing flags through `curl … | bash`: use **`bash -s -- <flags>`** (the script is on
+> stdin, so `-s --` forwards the flags to it). `bash --with-all-extras` alone would be
+> read by bash itself, not the script.
 
 You'll be asked which agents to enable, which models to default to, and whether to
 install Superpowers and build the graph. Non-interactive:
@@ -77,23 +84,29 @@ extra tools (graphify/Superpowers-class) you can add.
    model in the task model-picker.
 4. After code changes: `graphify update .`
 
+## What each tool does
+
+| Tool | What it is | Typical use | Set up by |
+|---|---|---|---|
+| **graphify** | A queryable **code knowledge graph** of your repo (relationships/architecture) — recall instead of grepping | `graphify query "how does auth work"` to orient before editing; `graphify update .` after changes | default (prompted) |
+| **Superpowers** | A **dev-methodology** plugin for Claude Code: brainstorm → plan → TDD → review | Ask for a feature and it clarifies, plans, and writes tests first instead of dumping code | default (prompted) |
+| **Slash commands** | `pr-review`, `progress-report`, `deep-test`, `repeatable-task`, `security-audit` | `/pr-review 42` · `/deep-test src/api` · `/security-audit` (no API key) | always |
+| **ast-grep** | **Structural (AST) search + safe codemods**, many languages; 100% local | Bulk-rewrite a call pattern repo-wide (`ast-grep -p '…' -r '…' -l ts`); find matches regex can't express | `--with-ast-grep` |
+| **Grep MCP** | Search **~1M public GitHub repos** for real-world usage examples | "find real examples of `<API>`" — grounds the agent, avoids hallucinated APIs | `--with-grep` |
+| **private-journal** | **Local cross-session memory** (on-device embeddings, nothing leaves the machine) | "record in your journal: we chose X because Y" → recall it in a later session | `--with-journal` |
+| **Claude hooks** | **Deterministic guardrails** (Claude only) | Auto-block reading `.env`/secrets and dangerous shell commands (`rm -rf /`, `curl \| sh`) | `--with-hooks` |
+
+graphify + Superpowers are the always-offered core; the rest are opt-in. Setup prints
+this same "what / config / use" blurb as it installs each one.
+
 ## Optional tools (opt-in)
-Beyond graphify + Superpowers, setup can wire these in (prompted, or via flags) —
-all reversible by `uninstall.sh`. See [`docs/related-tools.md`](docs/related-tools.md)
-for the full vetted catalog and rationale.
-
-| Flag | Adds |
-|---|---|
-| `--with-ast-grep` | **ast-grep** CLI — structural search + safe codemods (graphify can't rewrite) |
-| `--with-grep` | **Grep MCP** — search ~1M public repos for real-world usage |
-| `--with-journal` | **private-journal** MCP — cross-session memory |
-| `--with-hooks` | **Claude guardrail hooks** — deny secret-file reads / dangerous shell cmds |
-| `--with-all-extras` | all of the above |
-
-MCP servers are written into each enabled agent's config (`.mcp.json` /
-`.codex/config.toml` / `.vscode/mcp.json`). Security review needs no API key: use the
-cross-agent `/security-audit` command (always installed) or Claude's built-in
-`/security-review` — both run on your existing plan.
+The extras above (ast-grep, Grep MCP, private-journal, Claude hooks) are enabled by
+their `--with-*` flag or the setup prompt — or all at once with **`--with-all-extras`**;
+all are reversible by `uninstall.sh`. MCP servers are written into each enabled
+agent's config (`.mcp.json` / `.codex/config.toml` / `.vscode/mcp.json`). Security
+review needs **no API key** — use the cross-agent `/security-audit` command (always
+installed) or Claude's built-in `/security-review`, both on your existing plan. See
+[`docs/related-tools.md`](docs/related-tools.md) for the full vetted catalog.
 
 ## Options
 `setup.sh [TARGET_DIR] [--agents=…] [--claude-model=…] [--codex-model=…]
