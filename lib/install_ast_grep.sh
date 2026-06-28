@@ -9,6 +9,7 @@ install_ast_grep() {
   if has_cmd ast-grep; then
     local ver; ver="$(ast-grep --version 2>/dev/null | head -n1 || true)"
     log_success "ast-grep already installed (${ver})."
+    tool_info ast-grep
     return 0
   fi
 
@@ -29,6 +30,6 @@ install_ast_grep() {
 
   if has_cmd ast-grep; then
     log_success "ast-grep installed."
-    log_dim "Use: ast-grep -p '<pattern>' -l <lang>   (rewrite: add -r '<replacement>')"
+    tool_info ast-grep
   fi
 }

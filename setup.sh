@@ -89,7 +89,7 @@ while [ $# -gt 0 ]; do
 done
 
 # ---- source libraries -----------------------------------------------------
-for f in log detect prompt idempotent mcp \
+for f in log detect prompt idempotent toolinfo mcp \
          configure_claude configure_codex configure_copilot \
          install_graphify install_ast_grep install_journal scaffold; do
   # shellcheck source=/dev/null

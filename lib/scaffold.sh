@@ -6,6 +6,8 @@ _ADK_SCAFFOLD_SOURCED=1
 # Reusable commands list (single source of truth, shared with uninstall.sh).
 # shellcheck source=/dev/null
 . "$ADK_ROOT/lib/commands.sh"
+# shellcheck source=/dev/null
+. "$ADK_ROOT/lib/toolinfo.sh"
 
 # ---- manifest + conflict handling ----------------------------------------
 # The manifest (.ai-dev-kit-manifest) lists the project-relative paths the kit
@@ -135,6 +137,7 @@ scaffold_commands() {
     log_success "Codex prompts -> ${CODEX_HOME:-$HOME/.codex}/prompts/*.md (USER-GLOBAL; invoke: /prompts:pr-review …)"
     log_dim "Codex prompts are global (no per-project scope) and need a Codex restart to appear."
   fi
+  tool_info commands
   return 0
 }
 
@@ -165,11 +168,11 @@ gitignore_step() {
 # agent; guardrail hooks are Claude-only.
 scaffold_extras() {
   local any=""
-  if [ -n "${WANT_GREP_MCP:-}" ]; then register_mcp grep http https://mcp.grep.app; any=1; fi
+  if [ -n "${WANT_GREP_MCP:-}" ]; then register_mcp grep http https://mcp.grep.app; tool_info grep; any=1; fi
   if [ -n "${WANT_JOURNAL:-}" ]; then
     local jentry="${ADK_JOURNAL_DIR:-$HOME/.ai-dev-kit-tools/private-journal-mcp}/dist/index.js"
     if [ -f "$jentry" ]; then
-      register_mcp private-journal stdio node "$jentry"; any=1
+      register_mcp private-journal stdio node "$jentry"; tool_info private-journal; any=1
     else
       log_warn "private-journal not built - re-run setup with --with-journal (needs git + npm) to enable it."
     fi
@@ -192,6 +195,7 @@ scaffold_hooks() {
   record_manifest ".claude/hooks/guard-paths.py"
   if python3 "$ADK_ROOT/lib/hooks_merge.py" "$TARGET_DIR/.claude/settings.json"; then
     log_success "Claude guardrail hooks -> .claude/hooks/ + settings.json (deny secrets / dangerous cmds)"
+    tool_info hooks
   else
     log_warn "Could not merge hooks into .claude/settings.json."
   fi

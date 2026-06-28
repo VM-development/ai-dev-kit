@@ -64,5 +64,5 @@ install_graphify() {
   else
     log_dim "Later: run 'graphify update .' in the project, or '/graphify .' inside your assistant."
   fi
-  log_dim "Keep it current after code changes with: graphify update ."
+  tool_info graphify
 }

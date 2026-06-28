@@ -25,6 +25,7 @@ configure_claude() {
         log_warn "Auto-install failed. In a Claude Code session run:"
         log_dim   "/plugin install superpowers@claude-plugins-official"
       fi
+      tool_info superpowers
     else
       log_warn "Skipping Superpowers - Claude Code CLI not available."
     fi
