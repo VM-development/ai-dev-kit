@@ -49,6 +49,21 @@ slash-command files.
 2. **Copilot:** pick the model in the task model-picker.
 3. After code changes: `graphify update .`
 
+## Tools & extras
+**graphify** and **Superpowers** are offered by default (you're prompted); the four extras are
+opt-in via their flag — or all at once with `--with-all-extras` — and every one is reversible by `uninstall.sh`.
+
+| Tool | What it does | Enable |
+|---|---|---|
+| **graphify** | Queryable **code knowledge graph** — agents recall architecture instead of grepping (`graphify query "…"`; refresh with `graphify update .`) | default |
+| **Superpowers** | Dev-methodology plugin for **Claude Code** (brainstorm → plan → TDD → review); Codex/Copilot follow the same flow via `AGENTS.md` | default |
+| **ast-grep** | **Structural (AST) search + safe codemods**, many languages, 100% local | `--with-ast-grep` |
+| **Grep MCP** | Search **~1M public GitHub repos** for real-world usage — grounds the agent, avoids hallucinated APIs | `--with-grep` |
+| **private-journal** | **Local cross-session memory** (on-device embeddings; nothing leaves your machine) | `--with-journal` |
+| **Claude hooks** | **Deterministic guardrails** (Claude only): auto-block reading secrets + dangerous shell (`rm -rf /`, `curl \| sh`) | `--with-hooks` |
+
+MCP servers (Grep, private-journal) are written into each enabled agent's config; security review needs **no API key** (use `/security-audit`, or Claude's built-in `/security-review`).
+
 ## Reference
 - **Slash commands** (where enabled): `/pr-review`, `/deep-test`, `/security-audit` (no API key), `/progress-report`, `/repeatable-task`. Codex uses `/prompts:<name>`.
 - **Options & conflict handling:** `./setup.sh --help`. Re-running is safe (idempotent; tracked in `.ai-dev-kit-manifest`); `AGENTS.md` is never overwritten.
