@@ -25,6 +25,7 @@ Everything else below is reference/optional.
 |---|---|---|---|
 | [Context7 MCP](https://github.com/upstash/context7) | Up-to-date, version-specific library docs/API examples injected at runtime — kills outdated/hallucinated APIs | Remote MCP URL `https://mcp.context7.com/mcp` (no install) | all (MCP) |
 | [ast-grep](https://github.com/ast-grep/ast-grep) | AST/structural code search + safe codemods that text-grep can't express | `brew install ast-grep` · `npm i -g @ast-grep/cli` · `pip install ast-grep-cli` | all (CLI) |
+| [ponytail](https://github.com/DietrichGebert/ponytail) | Lazy-senior-dev skill: agent writes minimal code (YAGNI, stdlib/native first) — ~50% less code, stays safe. Complements Superpowers (methodology → less of it) | Plugin marketplace: `/plugin marketplace add DietrichGebert/ponytail` + `/plugin install ponytail@ponytail` (Claude; `codex`/`copilot` same subcommands) | all (plugin + `AGENTS.md`) |
 | [Serena](https://github.com/oraios/serena) *(not wired — removed)* | LSP-backed semantic symbol nav + precise cross-file edits (40+ langs) — live intelligence vs. graphify's static graph | manual: `uvx --from git+https://github.com/oraios/serena serena-mcp-server` as an MCP entry (heaviest: uv+Python+LSP) | all (MCP) |
 | [claude-code-security-review](https://github.com/anthropics/claude-code-security-review) | Diff-aware semantic vuln scan on PRs (first-party) | GitHub Action `anthropics/claude-code-security-review` | CI (needs `CLAUDE_API_KEY`; local `/security-review` uses Max instead) |
 

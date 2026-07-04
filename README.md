@@ -67,12 +67,13 @@ opt-in via their flag — or all at once with `--with-all-extras` — and every 
 |---|---|---|
 | **graphify** | Queryable **code knowledge graph** — agents recall architecture instead of grepping (`graphify query "…"`; refresh with `graphify update .`) | default |
 | **Superpowers** | Dev-methodology plugin for **Claude Code** (brainstorm → plan → TDD → review); Codex/Copilot follow the same flow via `AGENTS.md` | default |
+| **[ponytail](https://github.com/DietrichGebert/ponytail)** | Lazy-senior-dev skill — agent writes **minimal code** (YAGNI; stdlib/native before deps; one line before fifty), cross-agent | plugin (all 3 agents) |
 | **ast-grep** | **Structural (AST) search + safe codemods**, many languages, 100% local | `--with-ast-grep` |
 | **Grep MCP** | Search **~1M public GitHub repos** for real-world usage — grounds the agent, avoids hallucinated APIs | `--with-grep` |
 | **private-journal** | **Local cross-session memory** (on-device embeddings; nothing leaves your machine) | `--with-journal` |
 | **Claude hooks** | **Deterministic guardrails** (Claude only): auto-block reading secrets + dangerous shell (`rm -rf /`, `curl \| sh`) | `--with-hooks` |
 
-MCP servers (Grep, private-journal) are written into each enabled agent's config; security review needs **no API key** (use `/security-audit`, or Claude's built-in `/security-review`).
+MCP servers (Grep, private-journal) are written into each enabled agent's config; security review needs **no API key** (use `/security-audit`, or Claude's built-in `/security-review`). **ponytail** isn't wired into `setup.sh` — install it from each agent's plugin marketplace: `/plugin marketplace add DietrichGebert/ponytail` then `/plugin install ponytail@ponytail` (Claude Code; `codex` / `copilot` use the same subcommands).
 
 ## Example prompt — a feature through every tool
 Drive one feature through graphify, Grep MCP, ast-grep, the workflow, and private-journal
