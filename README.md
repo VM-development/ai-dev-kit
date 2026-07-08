@@ -77,6 +77,19 @@ extras are opt-in (or all at once with `--with-all-extras`) and reversible by `u
 
 MCP servers (Grep, private-journal) land in each enabled agent's config; security review needs **no API key** (`/security-audit`, or Claude's built-in `/security-review`). Install the plugin/CLI tools yourself: **ponytail** — `/plugin marketplace add DietrichGebert/ponytail` then `/plugin install ponytail@ponytail` (per agent); **spec-kit** — `uv tool install specify-cli --from git+https://github.com/github/spec-kit.git`, then `specify init .` (pick your agent).
 
+### Superpowers skills (the workflow it enforces)
+In Claude Code these run as skills, roughly in order; Codex/Copilot follow the same flow via `AGENTS.md`.
+
+| Skill | Activates | Does |
+|---|---|---|
+| `brainstorming` | before writing code | refines a rough idea through questions, explores alternatives, presents the design in sections for validation, saves a design doc |
+| `using-git-worktrees` | after design approval | creates an isolated workspace on a new branch, runs project setup, verifies a clean test baseline |
+| `writing-plans` | with an approved design | breaks work into bite-sized 2–5 min tasks — each with exact file paths, complete code, and verification steps |
+| `subagent-driven-development` / `executing-plans` | with a plan | dispatches a fresh subagent per task with two-stage review (spec compliance, then code quality), or executes in batches with human checkpoints |
+| `test-driven-development` | during implementation | enforces RED → GREEN → REFACTOR (failing test → watch it fail → minimal code → watch it pass → commit); deletes code written before its test |
+| `requesting-code-review` | between tasks | reviews against the plan and reports issues by severity — critical issues block progress |
+| `finishing-a-development-branch` | when tasks complete | verifies tests, presents options (merge / PR / keep / discard), cleans up the worktree |
+
 ## Example prompt — a feature through every tool
 Drive one feature through graphify, Grep MCP, ast-grep, the workflow, and private-journal
 (full walk-through: [docs/example-prompt.md](docs/example-prompt.md)):
