@@ -60,20 +60,22 @@ slash-command files.
 3. After code changes: `graphify update .`
 
 ## Tools & extras
-**graphify** and **Superpowers** are offered by default (you're prompted); the four extras are
-opt-in via their flag — or all at once with `--with-all-extras` — and every one is reversible by `uninstall.sh`.
+**graphify** and **Superpowers** are installed by setup (you're prompted); the four `--with-*`
+extras are opt-in (or all at once with `--with-all-extras`) and reversible by `uninstall.sh`.
+**ponytail** and **spec-kit** install via their own plugin/CLI — see the note below the table.
 
-| Tool | What it does | Enable |
-|---|---|---|
-| **graphify** | Queryable **code knowledge graph** — agents recall architecture instead of grepping (`graphify query "…"`; refresh with `graphify update .`) | default |
-| **Superpowers** | Dev-methodology plugin for **Claude Code** (brainstorm → plan → TDD → review); Codex/Copilot follow the same flow via `AGENTS.md` | default |
-| **[ponytail](https://github.com/DietrichGebert/ponytail)** | Lazy-senior-dev skill — agent writes **minimal code** (YAGNI; stdlib/native before deps; one line before fifty), cross-agent | plugin (all 3 agents) |
-| **ast-grep** | **Structural (AST) search + safe codemods**, many languages, 100% local | `--with-ast-grep` |
-| **Grep MCP** | Search **~1M public GitHub repos** for real-world usage — grounds the agent, avoids hallucinated APIs | `--with-grep` |
-| **private-journal** | **Local cross-session memory** (on-device embeddings; nothing leaves your machine) | `--with-journal` |
-| **Claude hooks** | **Deterministic guardrails** (Claude only): auto-block reading secrets + dangerous shell (`rm -rf /`, `curl \| sh`) | `--with-hooks` |
+| Tool | Does | Example | Enable |
+|---|---|---|---|
+| [graphify](https://pypi.org/project/graphifyy/) | Queryable code knowledge graph — recall, not grep | `graphify query "how does auth work"` | default |
+| [Superpowers](https://github.com/obra/superpowers) | Dev methodology: brainstorm → plan → TDD → review | *"Add feature X"* → it plans + writes tests first | default |
+| [ponytail](https://github.com/DietrichGebert/ponytail) | Minimal-code skill (YAGNI; stdlib/native first) | *"Add a date picker"* → `<input type="date">` | plugin (all 3) |
+| [spec-kit](https://github.com/github/spec-kit) | Spec-driven dev: spec → plan → tasks → implement | `specify init .`, then `/speckit.specify`, `/speckit.plan`, `/speckit.tasks`, `/speckit.implement` | `specify` CLI |
+| [ast-grep](https://github.com/ast-grep/ast-grep) | Structural (AST) search + safe codemods, local | `ast-grep -p 'useState($X)' -l tsx` | `--with-ast-grep` |
+| [Grep MCP](https://grep.app) | Search ~1M public GitHub repos for real usage | *"find real-world usage of `<API>`"* | `--with-grep` |
+| [private-journal](https://github.com/obra/private-journal-mcp) | Local cross-session memory (on-device) | *"record in your journal: chose X because Y"* | `--with-journal` |
+| [Claude hooks](templates/claude/hooks/) | Deny secrets / dangerous shell (Claude only) | auto-blocks `cat .env`, `rm -rf /` | `--with-hooks` |
 
-MCP servers (Grep, private-journal) are written into each enabled agent's config; security review needs **no API key** (use `/security-audit`, or Claude's built-in `/security-review`). **ponytail** isn't wired into `setup.sh` — install it from each agent's plugin marketplace: `/plugin marketplace add DietrichGebert/ponytail` then `/plugin install ponytail@ponytail` (Claude Code; `codex` / `copilot` use the same subcommands).
+MCP servers (Grep, private-journal) land in each enabled agent's config; security review needs **no API key** (`/security-audit`, or Claude's built-in `/security-review`). Install the plugin/CLI tools yourself: **ponytail** — `/plugin marketplace add DietrichGebert/ponytail` then `/plugin install ponytail@ponytail` (per agent); **spec-kit** — `uv tool install specify-cli --from git+https://github.com/github/spec-kit.git`, then `specify init .` (pick your agent).
 
 ## Example prompt — a feature through every tool
 Drive one feature through graphify, Grep MCP, ast-grep, the workflow, and private-journal
